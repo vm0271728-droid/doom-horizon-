@@ -1,0 +1,44 @@
+name: build-hmod
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Распаковать исходники (если загружен zip)
+        run: unzip -o doom-e1m1-mod.zip || true
+
+      - name: Забрать SDK форка Horizon Android
+        run: git clone --depth 1 -b android https://github.com/Vasysik/horizon-android "$HOME/horizon-android"
+
+      - name: Поправить путь к SDK в Cargo.toml
+        run: sed -i "s|path = \"/root/horizon-android/crates/horizon-mod-sdk\"|path = \"$HOME/horizon-android/crates/horizon-mod-sdk\"|" Cargo.toml
+
+      - name: Собрать cargo-horizon-mod
+        run: cargo install --path "$HOME/horizon-android/crates/cargo-horizon-mod"
+
+      - name: Собрать .hmod
+        run: cargo horizon-mod build
+
+      - name: Отдать артефакт
+        uses: actions/upload-artifact@v4
+        with:
+          name: hud_doom-hmod
+          path: target/horizon-mod/hud_doom.hmod
+
+      - name: Релиз при теге v*
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/horizon-mod/hud_doom.hmod
