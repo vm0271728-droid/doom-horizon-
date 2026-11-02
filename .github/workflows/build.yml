@@ -1,0 +1,33 @@
+name: build-hmod
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/cargo-horizon-mod
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: hmod-9a9c6dc1386614237dc8e144047c59d3ba48efe4-${{ hashFiles('Cargo.toml') }}
+      - name: Install cargo-horizon-mod
+        run: |
+          command -v cargo-horizon-mod || cargo install --locked --git https://github.com/Vasysik/horizon-android --rev 9a9c6dc1386614237dc8e144047c59d3ba48efe4 cargo-horizon-mod
+      - name: Build .hmod
+        run: cargo horizon-mod build
+      - name: Check .hmod
+        run: cargo horizon-mod check target/horizon-mod/hud_doom.hmod
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hud_doom.hmod
+          path: target/horizon-mod/hud_doom.hmod
